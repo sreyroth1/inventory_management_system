@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Inventory Management System{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">Inventory Dashboard</h1>
+    <p class="text-gray-600">Manage your products and track inventory</p>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <form method="GET" action="/" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Search Products</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="Search by name..." 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+            <select name="category" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex space-x-2 items-end">
+            <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+                Apply Filters
+            </button>
+            <a href="/" class="w-full bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition duration-200 text-center">
+                Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Total Products</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_products }}</p>
+            </div>
+            <i class="fas fa-boxes text-blue-500 text-xl"></i>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Total Quantity</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_quantity }}</p>
+            </div>
+            <i class="fas fa-cubes text-green-500 text-xl"></i>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Total Value</p>
+                <p class="text-2xl font-bold text-gray-800">${{ "%.2f"|format(total_value) }}</p>
+            </div>
+            <i class="fas fa-dollar-sign text-purple-500 text-xl"></i>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Categories</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_categories }}</p>
+            </div>
+            <i class="fas fa-tags text-orange-500 text-xl"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-gray-800">Products</h2>
+        <a href="/add-product" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+            <i class="fas fa-plus mr-2"></i>Add Product
+        </a>
+    </div>
+    
+    {% if products %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for product in products %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">
+                                {{ product.name[0]|upper }}
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">{{ product.name }}</div>
+                                <div class="text-sm text-gray-500">{{ product.sku }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            {{ product.category }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${{ "%.2f"|format(product.price) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-sm font-medium {% if product.quantity == 0 %}bg-red-100 text-red-800{% elif product.quantity < 10 %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %} rounded-full">
+                            {{ product.quantity }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        ${{ "%.2f"|format(product.total_value) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <a href="/edit-product/{{ product.id }}" class="text-blue-600 hover:text-blue-900">Edit</a>
+                            <a href="/delete-product/{{ product.id }}" class="text-red-600 hover:text-red-900" 
+                               onclick="return confirm('Are you sure you want to delete this product?')">Delete</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-box-open text-gray-400 text-4xl mb-3"></i>
+        <p class="text-gray-600 text-lg">No products found</p>
+        <p class="text-gray-500 mt-2">Add your first product to get started</p>
+        <a href="/add-product" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+            Add Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
