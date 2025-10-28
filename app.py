@@ -355,6 +355,10 @@ def api_get_categories():
         return jsonify([cat[0] for cat in categories])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/view-product/<int:id>')
+def view_product_page(id):
+    product = Product.query.get_or_404(id)
+    return render_template('view_product.html', product=product)
 
 if __name__ == '__main__':
     with app.app_context():

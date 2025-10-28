@@ -1,6 +1,6 @@
 import os
-import subprocess
-import sys
+# import subprocess
+# import sys
 
 def create_project_structure():
     """Create the complete project structure"""
