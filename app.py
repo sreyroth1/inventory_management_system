@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from models import db, Product
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from models import db, Product, User, Order, OrderItem
 from datetime import datetime
 import os
 
@@ -10,8 +11,94 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 
 db.init_app(app)
 
-# Routes for HTML pages
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'error'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Admin required decorator
+def admin_required(f):
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_admin():
+            flash('Admin access required.', 'error')
+            return redirect('/')
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+# Authentication Routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    # If user is already logged in, redirect to dashboard
+    if current_user.is_authenticated:
+        return redirect('/')
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember_me = bool(request.form.get('remember_me'))
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user, remember=remember_me)
+            flash(f'Welcome back, {user.username}!', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect('/')
+        else:
+            flash('Invalid username or password', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out successfully.', 'success')
+    return redirect('/login')
+
+# Initialize demo user (run this once)
+@app.route('/init-demo-user')
+def init_demo_user_route():
+    # Check if demo user already exists
+    if not User.query.filter_by(username='admin').first():
+        demo_user = User(
+            username='admin',
+            email='admin@inventory.com',
+            first_name='System',
+            last_name='Administrator',
+            role='admin'
+        )
+        demo_user.set_password('password123')
+        db.session.add(demo_user)
+        
+        # Also create a regular user for testing
+        regular_user = User(
+            username='user',
+            email='user@inventory.com',
+            first_name='Regular',
+            last_name='User',
+            role='user'
+        )
+        regular_user.set_password('password123')
+        db.session.add(regular_user)
+        
+        db.session.commit()
+        flash('Demo users created successfully! Admin: admin/password123, User: user/password123', 'success')
+    else:
+        flash('Demo users already exist!', 'info')
+    return redirect('/login')
+
+# Main Application Routes
 @app.route('/')
+@login_required
 def dashboard():
     # Get search and filter parameters
     search = request.args.get('search', '')
@@ -48,7 +135,8 @@ def dashboard():
                          total_categories=total_categories)
 
 @app.route('/add-product', methods=['GET', 'POST'])
-def add_product_page():
+@login_required
+def add_product():
     if request.method == 'POST':
         try:
             # Get form data
@@ -101,7 +189,8 @@ def add_product_page():
     return render_template('add_product.html')
 
 @app.route('/edit-product/<int:id>', methods=['GET', 'POST'])
-def edit_product_page(id):
+@login_required
+def edit_product(id):
     product = Product.query.get_or_404(id)
     
     if request.method == 'POST':
@@ -154,6 +243,7 @@ def edit_product_page(id):
     return render_template('edit_product.html', product=product)
 
 @app.route('/delete-product/<int:id>')
+@login_required
 def delete_product(id):
     try:
         product = Product.query.get_or_404(id)
@@ -166,8 +256,192 @@ def delete_product(id):
     
     return redirect('/')
 
+@app.route('/view-product/<int:id>')
+@login_required
+def view_product(id):
+    product = Product.query.get_or_404(id)
+    return render_template('view_product.html', product=product)
+
+# Order Management Routes
+@app.route('/orders')
+@login_required
+def orders():
+    status = request.args.get('status', '')
+    
+    query = Order.query
+    
+    if status:
+        query = query.filter(Order.status == status)
+    
+    orders = query.order_by(Order.created_at.desc()).all()
+    
+    # Calculate order statistics
+    total_orders = Order.query.count()
+    pending_orders = Order.query.filter_by(status='pending').count()
+    completed_orders = Order.query.filter_by(status='completed').count()
+    total_revenue = db.session.query(db.func.sum(Order.total_amount)).scalar() or 0
+    
+    return render_template('orders.html',
+                         orders=orders,
+                         total_orders=total_orders,
+                         pending_orders=pending_orders,
+                         completed_orders=completed_orders,
+                         total_revenue=total_revenue)
+
+@app.route('/create-order', methods=['GET', 'POST'])
+@login_required
+def create_order():
+    if request.method == 'POST':
+        try:
+            # Get form data
+            customer_name = request.form.get('customer_name')
+            customer_email = request.form.get('customer_email', '')
+            customer_phone = request.form.get('customer_phone', '')
+            status = request.form.get('status', 'pending')
+            notes = request.form.get('notes', '')
+            
+            # Get order items
+            product_ids = request.form.getlist('product_id[]')
+            product_names = request.form.getlist('product_name[]')
+            product_prices = request.form.getlist('product_price[]')
+            quantities = request.form.getlist('quantity[]')
+            
+            if not customer_name:
+                flash('Customer name is required.', 'error')
+                return render_template('create_order.html')
+            
+            if not product_ids:
+                flash('At least one product is required.', 'error')
+                return render_template('create_order.html')
+            
+            # Calculate total amount
+            total_amount = 0
+            order_items = []
+            
+            for i in range(len(product_ids)):
+                product_id = int(product_ids[i])
+                product_name = product_names[i]
+                product_price = float(product_prices[i])
+                quantity = int(quantities[i])
+                
+                # Check product stock
+                product = Product.query.get(product_id)
+                if not product:
+                    flash(f'Product {product_name} not found.', 'error')
+                    return render_template('create_order.html')
+                
+                if product.quantity < quantity:
+                    flash(f'Insufficient stock for {product_name}. Available: {product.quantity}', 'error')
+                    return render_template('create_order.html')
+                
+                item_total = product_price * quantity
+                total_amount += item_total
+                
+                order_items.append({
+                    'product_id': product_id,
+                    'product_name': product_name,
+                    'product_price': product_price,
+                    'quantity': quantity,
+                    'total_price': item_total
+                })
+            
+            # Create order
+            order = Order(
+                order_number=Order.generate_order_number(),
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                status=status,
+                total_amount=total_amount,
+                notes=notes
+            )
+            
+            db.session.add(order)
+            db.session.flush()  # Get order ID
+            
+            # Create order items and update product quantities
+            for item_data in order_items:
+                order_item = OrderItem(
+                    order_id=order.id,
+                    product_id=item_data['product_id'],
+                    product_name=item_data['product_name'],
+                    product_price=item_data['product_price'],
+                    quantity=item_data['quantity'],
+                    total_price=item_data['total_price']
+                )
+                db.session.add(order_item)
+                
+                # Update product quantity
+                product = Product.query.get(item_data['product_id'])
+                product.quantity -= item_data['quantity']
+            
+            db.session.commit()
+            
+            flash('Order created successfully!', 'success')
+            return redirect('/orders')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating order: {str(e)}', 'error')
+            return render_template('create_order.html')
+    
+    return render_template('create_order.html')
+
+@app.route('/view-order/<int:id>')
+@login_required
+def view_order(id):
+    order = Order.query.get_or_404(id)
+    return render_template('view_order.html', order=order)
+
+@app.route('/edit-order/<int:id>', methods=['GET', 'POST'])
+@admin_required
+def edit_order(id):
+    order = Order.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        try:
+            order.customer_name = request.form.get('customer_name')
+            order.customer_email = request.form.get('customer_email', '')
+            order.customer_phone = request.form.get('customer_phone', '')
+            order.status = request.form.get('status', 'pending')
+            order.notes = request.form.get('notes', '')
+            order.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Order updated successfully!', 'success')
+            return redirect('/orders')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating order: {str(e)}', 'error')
+    
+    return render_template('edit_order.html', order=order)
+
+@app.route('/delete-order/<int:id>')
+@admin_required
+def delete_order(id):
+    try:
+        order = Order.query.get_or_404(id)
+        
+        # Restore product quantities
+        for item in order.items:
+            product = Product.query.get(item.product_id)
+            if product:
+                product.quantity += item.quantity
+        
+        db.session.delete(order)
+        db.session.commit()
+        flash('Order deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting order: {str(e)}', 'error')
+    
+    return redirect('/orders')
+
+# Reports Route
 @app.route('/report')
-def reports_page():
+@login_required
+def report():
     try:
         # Get all products for calculations
         products = Product.query.all()
@@ -226,9 +500,10 @@ def reports_page():
     except Exception as e:
         return render_template('report.html', error=str(e))
 
-# API Routes (Renamed to avoid conflicts)
+# API Routes
 @app.route('/api/products', methods=['GET'])
-def api_get_products():
+@login_required
+def api_products():
     try:
         search = request.args.get('search', '')
         category = request.args.get('category', '')
@@ -245,77 +520,24 @@ def api_get_products():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/products', methods=['POST'])
-def api_add_product():
+@app.route('/api/orders', methods=['GET'])
+@login_required
+def api_orders():
     try:
-        data = request.get_json()
+        status = request.args.get('status', '')
         
-        # Check if SKU already exists
-        if Product.query.filter_by(sku=data['sku']).first():
-            return jsonify({'error': 'SKU already exists'}), 400
+        query = Order.query
+        if status:
+            query = query.filter(Order.status == status)
             
-        product = Product(
-            name=data['name'],
-            category=data['category'],
-            price=float(data['price']),
-            quantity=int(data['quantity']),
-            description=data.get('description', ''),
-            sku=data['sku']
-        )
-        
-        db.session.add(product)
-        db.session.commit()
-        
-        return jsonify(product.to_dict()), 201
+        orders = query.order_by(Order.created_at.desc()).all()
+        return jsonify([order.to_dict() for order in orders])
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/products/<int:id>', methods=['GET'])
-def api_get_product(id):
-    try:
-        product = Product.query.get_or_404(id)
-        return jsonify(product.to_dict())
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/products/<int:id>', methods=['PUT'])
-def api_update_product(id):
-    try:
-        product = Product.query.get_or_404(id)
-        data = request.get_json()
-        
-        # Check if SKU already exists (excluding current product)
-        if 'sku' in data and data['sku'] != product.sku:
-            if Product.query.filter_by(sku=data['sku']).first():
-                return jsonify({'error': 'SKU already exists'}), 400
-        
-        product.name = data.get('name', product.name)
-        product.category = data.get('category', product.category)
-        product.price = float(data.get('price', product.price))
-        product.quantity = int(data.get('quantity', product.quantity))
-        product.description = data.get('description', product.description)
-        product.sku = data.get('sku', product.sku)
-        
-        db.session.commit()
-        return jsonify(product.to_dict())
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/products/<int:id>', methods=['DELETE'])
-def api_delete_product(id):
-    try:
-        product = Product.query.get_or_404(id)
-        db.session.delete(product)
-        db.session.commit()
-        return jsonify({'message': 'Product deleted successfully'})
-    except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reports')
-def api_get_reports():
+@login_required
+def api_reports():
     try:
         total_products = Product.query.count()
         total_quantity = db.session.query(db.func.sum(Product.quantity)).scalar() or 0
@@ -348,18 +570,7 @@ def api_get_reports():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/categories')
-def api_get_categories():
-    try:
-        categories = db.session.query(Product.category).distinct().all()
-        return jsonify([cat[0] for cat in categories])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-@app.route('/view-product/<int:id>')
-def view_product_page(id):
-    product = Product.query.get_or_404(id)
-    return render_template('view_product.html', product=product)
-
+# Initialize the database and run the app
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

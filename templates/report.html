@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-800 mb-2">Inventory Reports</h1>
-    <p class="text-gray-600">Server-generated inventory insights and analytics</p>
+    <p class="text-gray-600">Interactive charts and analytics for your inventory</p>
 </div>
 
 {% if error %}
@@ -19,33 +19,33 @@
 
 <!-- Summary Cards -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-6 border border-blue-200">
+    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 border-blue-200">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-blue-600 mb-1">Total Products</p>
                 <p class="text-3xl font-bold text-gray-800">{{ total_products }}</p>
                 <p class="text-xs text-blue-500 mt-1">Across all categories</p>
             </div>
-            <div class="bg-blue-500 p-3 rounded-xl">
+            <div class="bg-blue-500 p-3">
                 <i class="fas fa-boxes text-white text-2xl"></i>
             </div>
         </div>
     </div>
 
-    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-lg p-6 border border-green-200">
+    <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 border-green-200">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-green-600 mb-1">Total Stock</p>
                 <p class="text-3xl font-bold text-gray-800">{{ total_quantity }}</p>
                 <p class="text-xs text-green-500 mt-1">Items in inventory</p>
             </div>
-            <div class="bg-green-500 p-3 rounded-xl">
+            <div class="bg-green-500 p-3">
                 <i class="fas fa-cubes text-white text-2xl"></i>
             </div>
         </div>
     </div>
 
-    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg p-6 border border-purple-200">
+    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 border-purple-200">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-purple-600 mb-1">Total Value</p>
@@ -59,76 +59,56 @@
     </div>
 </div>
 
-<!-- Text-based Charts Section -->
+<!-- Interactive Charts Section - Two charts side by side -->
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
     <!-- Products by Category Chart -->
-    <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div class="bg-white shadow-lg p-6 border border-gray-100">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-chart-bar text-blue-500 mr-3"></i>
+                <i class="fas fa-chart-bar text-yellow-500 mr-3"></i>
                 Products by Category
             </h2>
-            <span class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-sm font-medium">
-                <i class="fas fa-cube mr-1"></i> Count
+            <span class="bg-yellow-100 text-yellow-600 px-3 py-1 text-sm font-medium">
+                <i class="fas fa-cube mr-1"></i> Product Count
             </span>
         </div>
-        <div class="space-y-4">
-            {% for category in categories %}
-            <div class="flex items-center justify-between py-2 border-b border-gray-100">
-                <span class="text-sm font-medium text-gray-700 w-32 truncate">{{ category.category }}</span>
-                <div class="flex-1 mx-4">
-                    <div class="bg-blue-500 h-4 rounded" style="width: {{ (category.count / (categories|map(attribute='count')|max * 100)) if categories|map(attribute='count')|max > 0 else 0 }}%"></div>
-                </div>
-                <span class="text-sm font-bold text-gray-900">{{ category.count }}</span>
-            </div>
-            {% else %}
-            <p class="text-gray-500 text-center py-4">No data available for charts</p>
-            {% endfor %}
+        <div class="h-80">
+            <canvas id="categoryChart"></canvas>
         </div>
         <div class="mt-4 text-center">
-            <p class="text-sm text-gray-500">Bar length represents product count proportion</p>
+            <p class="text-sm text-gray-500">Distribution of products across different categories</p>
         </div>
     </div>
 
     <!-- Value Distribution Chart -->
-    <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+    <div class="bg-white shadow-lg p-6 border border-gray-100">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-chart-pie text-green-500 mr-3"></i>
+                <i class="fas fa-chart-pie text-red-500 mr-3"></i>
                 Value Distribution
             </h2>
-            <span class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm font-medium">
-                <i class="fas fa-dollar-sign mr-1"></i> Value
+            <span class="bg-red-100 text-red-600 px-3 py-1 text-sm font-medium">
+                <i class="fas fa-dollar-sign mr-1"></i> Total Value
             </span>
         </div>
-        <div class="space-y-4">
-            {% for category in categories %}
-            <div class="flex items-center justify-between py-2 border-b border-gray-100">
-                <span class="text-sm font-medium text-gray-700 w-32 truncate">{{ category.category }}</span>
-                <div class="flex-1 mx-4">
-                    <div class="bg-green-500 h-4 rounded" style="width: {{ (category.total_value / (categories|map(attribute='total_value')|max * 100)) if categories|map(attribute='total_value')|max > 0 else 0 }}%"></div>
-                </div>
-                <span class="text-sm font-bold text-green-600">${{ "%.2f"|format(category.total_value) }}</span>
-            </div>
-            {% else %}
-            <p class="text-gray-500 text-center py-4">No data available for charts</p>
-            {% endfor %}
+        <div class="h-80">
+            <canvas id="valueChart"></canvas>
         </div>
         <div class="mt-4 text-center">
-            <p class="text-sm text-gray-500">Bar length represents value proportion</p>
+            <p class="text-sm text-gray-500">Inventory value distribution by category</p>
         </div>
     </div>
 </div>
 
-<!-- Category Breakdown -->
-<div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-8">
+<!-- Category Breakdown Table -->
+<div class="bg-white shadow-lg p-6 border border-gray-100 mb-8">
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-bold text-gray-800 flex items-center">
-            <i class="fas fa-table text-purple-500 mr-3"></i>
+            <i class="fas fa-table text-orange-500 mr-3"></i>
             Category Breakdown
         </h2>
-        <span class="bg-purple-100 text-purple-600 px-3 py-1 rounded-full text-sm font-medium">
-            <i class="fas fa-list mr-1"></i> Details
+        <span class="bg-orange-100 text-orange-600 px-3 py-1 text-sm font-medium">
+            <i class="fas fa-list mr-1"></i> Detailed View
         </span>
     </div>
     
@@ -159,7 +139,7 @@
                     <tr class="hover:bg-blue-50 transition-colors duration-200 group">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-blue-500 mr-3"></div>
+                                <div class="w-3 h-3 bg-blue-500 mr-3"></div>
                                 <span class="font-semibold text-gray-800 group-hover:text-blue-600">{{ category.category }}</span>
                             </div>
                         </td>
@@ -181,7 +161,7 @@
                                 {% set total_all_categories = categories | sum(attribute='total_value') %}
                                 {% if total_all_categories > 0 %}
                                 {% set percentage = (category.total_value / total_all_categories * 100) %}
-                                <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full ml-2">
+                                <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 ml-2">
                                     {{ "%.1f"|format(percentage) }}%
                                 </span>
                                 {% endif %}
@@ -208,25 +188,25 @@
 
 <!-- Quick Stats -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 text-center border border-orange-200">
+    <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center">
         <i class="fas fa-star text-orange-500 text-2xl mb-2"></i>
         <p class="text-sm font-medium text-orange-600">Top Category</p>
         <p class="text-lg font-bold text-gray-800">{{ top_category.category }}</p>
     </div>
     
-    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 text-center border border-red-200">
+    <div class="bg-gradient-to-br from-red-50 to-red-100 p-4 text-center">
         <i class="fas fa-fire text-red-500 text-2xl mb-2"></i>
         <p class="text-sm font-medium text-red-600">Highest Value</p>
         <p class="text-lg font-bold text-gray-800">${{ "%.2f"|format(highest_value.total_value) }}</p>
     </div>
     
-    <div class="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-4 text-center border border-teal-200">
+    <div class="bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center">
         <i class="fas fa-layer-group text-teal-500 text-2xl mb-2"></i>
         <p class="text-sm font-medium text-teal-600">Avg. Quantity</p>
         <p class="text-lg font-bold text-gray-800">{{ avg_quantity | round | int }}</p>
     </div>
     
-    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 text-center border border-indigo-200">
+    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center">
         <i class="fas fa-percentage text-indigo-500 text-2xl mb-2"></i>
         <p class="text-sm font-medium text-indigo-600">Categories</p>
         <p class="text-lg font-bold text-gray-800">{{ total_categories }}</p>
@@ -237,11 +217,200 @@
 
 <!-- Refresh Button -->
 <div class="text-center mt-8">
-    <a href="/report" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition duration-200 inline-flex items-center">
+    <a href="/report" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 font-medium transition duration-200 inline-flex items-center">
         <i class="fas fa-sync-alt mr-2"></i>
         Refresh Reports
     </a>
 </div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Chart data from Flask template - Safe approach
+const chartData = {
+    categories: JSON.parse('{{ categories | map(attribute="category") | list | tojson | safe }}'),
+    productCounts: JSON.parse('{{ categories | map(attribute="count") | list | tojson | safe }}'),
+    totalValues: JSON.parse('{{ categories | map(attribute="total_value") | list | tojson | safe }}'),
+    totalQuantities: JSON.parse('{{ categories | map(attribute="total_quantity") | list | tojson | safe }}')
+};
+
+// Mixed color palette using yellow, red, blue, green
+const mixedColors = [
+    '#f59e0b', // yellow-500
+    '#ef4444', // red-500  
+    '#3b82f6', // blue-500
+    '#10b981', // green-500
+    '#fbbf24', // yellow-400
+    '#f87171', // red-400
+    '#60a5fa', // blue-400
+    '#34d399', // green-400
+    '#fcd34d', // yellow-300
+    '#fca5a5', // red-300
+    '#93c5fd', // blue-300
+    '#6ee7b7', // green-300
+    '#fde68a', // yellow-200
+    '#fecaca', // red-200
+    '#bfdbfe', // blue-200
+    '#a7f3d0'  // green-200
+];
+
+// Function to get colors for datasets
+function getChartColors(count) {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        colors.push(mixedColors[i % mixedColors.length]);
+    }
+    return colors;
+}
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Products by Category Bar Chart - Mixed colors
+    const categoryCtx = document.getElementById('categoryChart');
+    if (categoryCtx) {
+        const categoryColors = getChartColors(chartData.categories.length);
+        const categoryChart = new Chart(categoryCtx, {
+            type: 'bar',
+            data: {
+                labels: chartData.categories,
+                datasets: [{
+                    label: 'Number of Products',
+                    data: chartData.productCounts,
+                    backgroundColor: categoryColors,
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        bodyFont: {
+                            size: 12
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                return `Products: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Products',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Categories',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Value Distribution Pie Chart - Mixed colors
+    const valueCtx = document.getElementById('valueChart');
+    if (valueCtx) {
+        const valueColors = getChartColors(chartData.categories.length);
+        const valueChart = new Chart(valueCtx, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.categories,
+                datasets: [{
+                    data: chartData.totalValues,
+                    backgroundColor: valueColors,
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 10,
+                            padding: 10,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        bodyFont: {
+                            size: 12
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                                return `$${value.toFixed(2)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '50%'
+            }
+        });
+    }
+
+    // Add animation to charts when they come into view
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+
+    // Observe chart containers
+    document.querySelectorAll('.bg-white').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        card.style.transitionDelay = `${index * 0.1}s`;
+        observer.observe(card);
+    });
+});
+</script>
 
 <style>
 .hover-lift:hover {
@@ -250,21 +419,52 @@
 }
 
 .overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
+    height: 6px;
 }
 
 .overflow-x-auto::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
+    background: #f1f1f1;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
+    background: #c1c1c1;
 }
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #a8a8a8;
+}
+
+/* Remove all border radius */
+canvas {
+    border-radius: 0px !important;
+}
+
+.bg-white {
+    border-radius: 0px !important;
+}
+
+.rounded-xl, .rounded-lg, .rounded-md, .rounded-sm, .rounded-full, .rounded {
+    border-radius: 0px !important;
+}
+
+/* Chart height */
+.h-80 {
+    height: 240px !important;
+}
+
+/* Smaller padding */
+.bg-white .p-6 {
+    padding: 1rem !important;
+}
+
+/* Smaller text */
+.bg-white h2 {
+    font-size: 1.1rem !important;
+}
+
+.bg-white .text-sm {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
 }
 </style>
 {% endblock %}
