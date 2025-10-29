@@ -1,62 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Inventory Management System{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50">
+    <!-- Chart.js for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <a href="/create-order" class="bg-green-500 text-white px-4 py-2 rounded">
+    Create Order
+</a>
+  </head>
+  <body class="bg-gray-50">
     <!-- Fixed Navigation -->
-    <nav class="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-50">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-boxes text-xl"></i>
-                    <h1 class="text-xl font-bold">Inventory Manager</h1>
-                </div>
-                <div class="flex space-x-6">
-                    <a href="/" class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/' %}bg-blue-700{% endif %}">
-                        <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                    </a>
-                    <a href="/add-product" class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/add-product' %}bg-blue-700{% endif %}">
-                        <i class="fas fa-plus mr-2"></i>Add Product
-                    </a>
-                    <a href="/report" class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/report' %}bg-blue-700{% endif %}">
-                        <i class="fas fa-chart-bar mr-2"></i>Reports
-                    </a>
-                </div>
+    <nav
+      class="bg-blue-600 text-white shadow-lg fixed top-0 left-0 right-0 z-50"
+    >
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-2">
+            <i class="fas fa-boxes text-xl"></i>
+            <h1 class="text-xl font-bold">Inventory Manager</h1>
+          </div>
+
+          <!-- Navigation Links (only show when user is logged in) -->
+          {% if current_user.is_authenticated %}
+          <div class="flex space-x-6">
+            <a
+              href="/"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/' %}bg-blue-700{% endif %}"
+            >
+              <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+            </a>
+            <a
+              href="/add-product"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/add-product' %}bg-blue-700{% endif %}"
+            >
+              <i class="fas fa-plus mr-2"></i>Add Product
+            </a>
+            <a
+              href="/orders"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path.startswith('/orders') %}bg-blue-700{% endif %}"
+            >
+              <i class="fas fa-shopping-cart mr-2"></i>Orders
+            </a>
+            <a
+              href="/report"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/report' %}bg-blue-700{% endif %}"
+            >
+              <i class="fas fa-chart-bar mr-2"></i>Reports
+            </a>
+            <!-- <a
+              href="/profile"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg {% if request.path == '/profile' %}bg-blue-700{% endif %}"
+            >
+              <i class="fas fa-user mr-2"></i>Profile
+            </a> -->
+          </div>
+
+          <!-- User Menu -->
+          <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+              <div
+                class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center"
+              >
+                <i class="fas fa-user text-white text-sm"></i>
+              </div>
+              <span class="text-sm">{{ current_user.username }}</span>
             </div>
+            <a
+              href="/logout"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg"
+            >
+              <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </a>
+          </div>
+          {% else %}
+          <!-- Show login link when not authenticated -->
+          <div>
+            <a
+              href="/login"
+              class="hover:text-blue-200 transition duration-200 py-2 px-3 rounded-lg"
+            >
+              <i class="fas fa-sign-in-alt mr-2"></i>Login
+            </a>
+            <span class="text-sm">{{ current_user.username }}</span>
+          </div>
+          {% endif %}
         </div>
+      </div>
     </nav>
 
     <!-- Spacer to push content below fixed nav -->
     <div class="h-20"></div>
 
     <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="max-w-7xl mx-auto px-4 pt-4">
-                {% for category, message in messages %}
-                    <div class="p-4 rounded-lg mb-4 {% if category == 'error' %}bg-red-100 border border-red-400 text-red-700{% else %}bg-green-100 border border-green-400 text-green-700{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="max-w-7xl mx-auto px-4 pt-4">
+      {% for category, message in messages %}
+      <div
+        class="p-4 rounded-lg mb-4 {% if category == 'error' %}bg-red-100 border border-red-400 text-red-700{% else %}bg-green-100 border border-green-400 text-green-700{% endif %}"
+      >
+        <div class="flex items-center">
+          <i
+            class="fas {% if category == 'error' %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} mr-2"
+          ></i>
+          {{ message }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-8">
-        {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-6 mt-12">
-        <div class="max-w-7xl mx-auto px-4 text-center">
-            <p>&copy; 2024 Inventory Management System. All rights reserved.</p>
-        </div>
+      <div class="max-w-7xl mx-auto px-4 text-center">
+        <p>&copy; 2025 Inventory Management System. All rights reserved.</p>
+      </div>
     </footer>
-</body>
+
+    <script>
+      // Auto-hide flash messages after 5 seconds
+      document.addEventListener("DOMContentLoaded", function () {
+        const flashMessages = document.querySelectorAll(".p-4.rounded-lg.mb-4");
+        flashMessages.forEach((message) => {
+          setTimeout(() => {
+            message.style.transition = "opacity 0.5s ease";
+            message.style.opacity = "0";
+            setTimeout(() => {
+              if (message.parentNode) {
+                message.parentNode.removeChild(message);
+              }
+            }, 500);
+          }, 5000);
+        });
+      });
+    </script>
+  </body>
 </html>
