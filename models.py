@@ -8,6 +8,8 @@ import string
 db = SQLAlchemy()
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -15,10 +17,11 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
     phone = db.Column(db.String(20))
-    role = db.Column(db.String(20), default='user')  # 'admin' or 'user'
+    role = db.Column(db.String(20), default='user')
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)  # Make sure this field exists
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -29,10 +32,15 @@ class User(UserMixin, db.Model):
     def is_admin(self):
         return self.role == 'admin'
     
+    def get_id(self):
+        return str(self.id)
+    
     def __repr__(self):
         return f'<User {self.username}>'
 
 class Product(db.Model):
+    __tablename__ = 'products'
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     category = db.Column(db.String(50), nullable=False)
@@ -62,23 +70,23 @@ class Product(db.Model):
         }
 
 class Order(db.Model):
+    __tablename__ = 'orders'
+    
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(50), unique=True, nullable=False)
     customer_name = db.Column(db.String(100), nullable=False)
     customer_email = db.Column(db.String(120))
     customer_phone = db.Column(db.String(20))
-    status = db.Column(db.String(20), default='pending')  # pending, completed, cancelled, shipped
+    status = db.Column(db.String(20), default='pending')
     total_amount = db.Column(db.Float, nullable=False)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship with order items
     items = db.relationship('OrderItem', backref='order', cascade='all, delete-orphan', lazy=True)
     
     @staticmethod
     def generate_order_number():
-        """Generate unique order number"""
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         return f'ORD-{timestamp}-{random_str}'
@@ -99,15 +107,16 @@ class Order(db.Model):
         }
 
 class OrderItem(db.Model):
+    __tablename__ = 'order_items'
+    
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     product_name = db.Column(db.String(100), nullable=False)
     product_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     total_price = db.Column(db.Float, nullable=False)
     
-    # Relationship with product
     product = db.relationship('Product')
     
     def to_dict(self):

@@ -33,6 +33,42 @@ def admin_required(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
+# Initialize database with demo data
+def init_database():
+    """Initialize the database with demo users"""
+    with app.app_context():
+        # Create all tables
+        db.create_all()
+        
+        # Check if demo users already exist
+        if not User.query.filter_by(username='admin').first():
+            # Create admin user
+            admin_user = User(
+                username='admin',
+                email='admin@inventory.com',
+                first_name='System',
+                last_name='Administrator',
+                role='admin'
+            )
+            admin_user.set_password('password123')
+            db.session.add(admin_user)
+            
+            # Create regular user
+            regular_user = User(
+                username='user',
+                email='user@inventory.com',
+                first_name='Regular',
+                last_name='User',
+                role='user'
+            )
+            regular_user.set_password('password123')
+            db.session.add(regular_user)
+            
+            db.session.commit()
+            print("Database initialized with demo users!")
+            print("Admin login: admin / password123")
+            print("User login: user / password123")
+
 # Authentication Routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -45,9 +81,21 @@ def login():
         password = request.form.get('password')
         remember_me = bool(request.form.get('remember_me'))
         
+        if not username or not password:
+            flash('Please enter both username and password.', 'error')
+            return render_template('login.html')
+        
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
+            if not user.is_active:
+                flash('Your account has been deactivated. Please contact an administrator.', 'error')
+                return render_template('login.html')
+            
+            # Update last login time
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
             login_user(user, remember=remember_me)
             flash(f'Welcome back, {user.username}!', 'success')
             next_page = request.args.get('next')
@@ -67,33 +115,8 @@ def logout():
 # Initialize demo user (run this once)
 @app.route('/init-demo-user')
 def init_demo_user_route():
-    # Check if demo user already exists
-    if not User.query.filter_by(username='admin').first():
-        demo_user = User(
-            username='admin',
-            email='admin@inventory.com',
-            first_name='System',
-            last_name='Administrator',
-            role='admin'
-        )
-        demo_user.set_password('password123')
-        db.session.add(demo_user)
-        
-        # Also create a regular user for testing
-        regular_user = User(
-            username='user',
-            email='user@inventory.com',
-            first_name='Regular',
-            last_name='User',
-            role='user'
-        )
-        regular_user.set_password('password123')
-        db.session.add(regular_user)
-        
-        db.session.commit()
-        flash('Demo users created successfully! Admin: admin/password123, User: user/password123', 'success')
-    else:
-        flash('Demo users already exist!', 'info')
+    init_database()
+    flash('Demo users created successfully! Admin: admin/password123, User: user/password123', 'success')
     return redirect('/login')
 
 # Main Application Routes
@@ -570,8 +593,121 @@ def api_reports():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Simple Admin Route - Only User Management
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    return redirect('/admin/users')
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+# Admin API Routes for User Management
+@app.route('/admin/api/users', methods=['GET', 'POST'])
+@admin_required
+def api_users():
+    if request.method == 'GET':
+        users = User.query.all()
+        return jsonify([{
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+            'created_at': user.created_at.isoformat()
+        } for user in users])
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        # Check if username or email already exists
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': 'Email already exists'}), 400
+        
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            first_name=data.get('first_name', ''),
+            last_name=data.get('last_name', ''),
+            role=data['role'],
+            is_active=data.get('is_active', True) == 'true'
+        )
+        user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'User created successfully'})
+
+@app.route('/admin/api/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+@admin_required
+def api_user(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'GET':
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'is_active': user.is_active
+        })
+    
+    elif request.method == 'PUT':
+        data = request.get_json()
+        
+        # Check if username or email already exists (excluding current user)
+        if User.query.filter(User.username == data['username'], User.id != user_id).first():
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        if User.query.filter(User.email == data['email'], User.id != user_id).first():
+            return jsonify({'error': 'Email already exists'}), 400
+        
+        user.username = data['username']
+        user.email = data['email']
+        user.first_name = data.get('first_name', '')
+        user.last_name = data.get('last_name', '')
+        user.role = data['role']
+        user.is_active = data.get('is_active', True) == 'true'
+        user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        return jsonify({'message': 'User updated successfully'})
+    
+    elif request.method == 'DELETE':
+        if user_id == current_user.id:
+            return jsonify({'error': 'Cannot delete your own account'}), 400
+        
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'message': 'User deleted successfully'})
+
+@app.route('/admin/api/users/<int:user_id>/toggle-status', methods=['POST'])
+@admin_required
+def toggle_user_status(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    if user_id == current_user.id:
+        return jsonify({'error': 'Cannot change your own status'}), 400
+    
+    user.is_active = not user.is_active
+    db.session.commit()
+    
+    return jsonify({'message': f'User {"activated" if user.is_active else "deactivated"} successfully'})
+
 # Initialize the database and run the app
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+    # Initialize database with demo data
+    init_database()
     app.run(debug=True)

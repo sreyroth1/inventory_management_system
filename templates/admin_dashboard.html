@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Inventory Management System{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
+    <p class="text-gray-600">Complete system overview and management</p>
+</div>
+
+<!-- Admin Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Total Users</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_users | default(0) }}</p>
+            </div>
+            <i class="fas fa-users text-blue-500 text-xl"></i>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            <span class="text-green-600">{{ active_users | default(0) }} active</span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Total Orders</p>
+                <p class="text-2xl font-bold text-gray-800">{{ total_orders | default(0) }}</p>
+            </div>
+            <i class="fas fa-shopping-cart text-green-500 text-xl"></i>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            <span class="text-yellow-600">{{ pending_orders | default(0) }} pending</span>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Revenue</p>
+                <p class="text-2xl font-bold text-gray-800">${{ "%.2f"|format(total_revenue | default(0)) }}</p>
+            </div>
+            <i class="fas fa-dollar-sign text-purple-500 text-xl"></i>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            This month: ${{ "%.2f"|format(monthly_revenue | default(0)) }}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Low Stock Items</p>
+                <p class="text-2xl font-bold text-gray-800">{{ low_stock_count | default(0) }}</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">
+            <span class="text-red-600">Needs attention</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
