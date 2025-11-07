@@ -20,15 +20,15 @@ An Inventory Management System is was built to help businesses track products, m
 
 ## Installation / Setup
 1. Clone the repository: https://github.com/sreyroth1/inventory_management_system.git
-3. Install dependencies: `pip install -r requirements.txt`
-4.  Run the application
+2. Install dependencies: `pip install -r requirements.txt`
+3.  Run the application: `app.py`
+4. Open your browser and navigate to: ` http://127.0.0.1:5000`
 
 ## Usage
-- Open your browser and go to ` http://127.0.0.1:5000`
 - Login using the default admin account:
   - Username: admin
   - Password: admin123
-- Then user can use all of the feature on the website
+- After logging in, users can access the full dashboard where users can manage products, orders, stock, reports also.
 
 ## Screenshot
 ### Login/logout
@@ -48,4 +48,13 @@ An Inventory Management System is was built to help businesses track products, m
 ![alt text](image-6.png)
 
 ## Support
-[Click here](https://chat.deepseek.com/) if you need any support !!
+
+<img src="image-7.png" alt="Srey Roth" width="100" height="100" style="border-radius: 50%;" />
+
+GitHub: [sreyroth1](https://github.com/sreyroth1)  
+Email: sreyrothsang925@gmail.com 
+
+
+## About
+
+This project is currently at version 1.0. It’s designed with simplicity in mind to help small to medium‑sized businesses manage their inventory in a user‑friendly manner.
